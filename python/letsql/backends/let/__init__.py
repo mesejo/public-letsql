@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Mapping
 
-import dask
 import pandas as pd
 import pyarrow as pa
 import pyarrow_hotfix  # noqa: F401
@@ -12,7 +11,6 @@ from ibis.expr import types as ir
 from ibis.expr.schema import SchemaLike
 from sqlglot import exp, parse_one
 
-import letsql.common.utils.dask_normalize  # noqa: F401
 from letsql.backends.datafusion import Backend as DataFusionBackend
 from letsql.common.caching import (
     SourceStorage,
@@ -24,8 +22,6 @@ from letsql.expr.relations import (
 )
 from letsql.expr.translate import sql_to_ibis
 from letsql.internal import SessionContext
-
-KEY_PREFIX = "letsql_cache-"
 
 
 class Backend(DataFusionBackend):
@@ -108,15 +104,19 @@ class Backend(DataFusionBackend):
                 replace_source = replace_source_factory(node.source)
                 uncached = node.map_clear(replace_cache_table)
                 # datafusion+ParquetStorage requires key have .parquet suffix: maybe push suffix append into ParquetStorage?
-                key = KEY_PREFIX + dask.base.tokenize(uncached.to_expr())
+                uncached_to_expr = uncached.to_expr()
                 storage = kwargs["storage"]
-                if not storage.exists(key):
-                    value = uncached
-                    storage.put(key, value.replace(replace_source))
-                node = storage.get(key)
+                node = storage.set_default(
+                    uncached_to_expr, uncached.replace(replace_source)
+                )
+                #
+                # if not storage.exists(uncached_to_expr):
+                #     value = uncached
+                #     storage.put(uncached_to_expr, value.replace(replace_source))
+                # node = storage.get(uncached_to_expr)
                 table = node.to_expr()
                 if node.source != self:
-                    self.register(table, table_name=key)
+                    self.register(table, table_name=storage.get_key(uncached_to_expr))
             if hasattr(node, "parent"):
                 parent = kwargs.get("parent", node.parent)
                 node = node.replace({node.parent: parent})
