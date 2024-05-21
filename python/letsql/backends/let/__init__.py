@@ -103,17 +103,11 @@ class Backend(DataFusionBackend):
             if isinstance(node, CachedNode):
                 replace_source = replace_source_factory(node.source)
                 uncached = node.map_clear(replace_cache_table)
-                # datafusion+ParquetStorage requires key have .parquet suffix: maybe push suffix append into ParquetStorage?
                 uncached_to_expr = uncached.to_expr()
                 storage = kwargs["storage"]
                 node = storage.set_default(
                     uncached_to_expr, uncached.replace(replace_source)
                 )
-                #
-                # if not storage.exists(uncached_to_expr):
-                #     value = uncached
-                #     storage.put(uncached_to_expr, value.replace(replace_source))
-                # node = storage.get(uncached_to_expr)
                 table = node.to_expr()
                 if node.source != self:
                     self.register(table, table_name=storage.get_key(uncached_to_expr))
