@@ -12,7 +12,7 @@ dependencies = [
     "connectorx==0.3.2 ; python_version >= '3.10' and python_version < '4.0'",
     "psycopg2-binary==2.9.9 ; python_version >= '3.10' and python_version < '4.0'",
     "sqlalchemy==2.0.29 ; python_version >= '3.10' and python_version < '4.0'",
-    "pyarrow>=13.0.0 ; python_version >= '3.10' and python_version < '4.0'",
+    "pyarrow>=13.0.0,<14 ; python_version >= '3.10' and python_version < '4.0'",
     "structlog==24.2.0 ; python_version >= '3.10' and python_version < '4.0'",
     "pytest-mock==3.14.0 ; python_version >= '3.10' and python_version < '4.0'",
 ]
@@ -97,7 +97,7 @@ pins = { version = ">=0.8.3,<1", extras = ["gcs"], optional = true }
 
 
 [tool.poetry.group.dev.dependencies]
-black = "23.10.1"
+black = ">=23.10.1,<24"
 blackdoc = "0.3.8"
 codespell = {version = "2.2.6", extras = ["hard-encoding-detection", "toml"]}
 coverage = {version = "7.3.2", extras = ["toml"]}
