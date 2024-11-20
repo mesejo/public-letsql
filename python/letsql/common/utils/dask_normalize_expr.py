@@ -17,8 +17,8 @@ from letsql.common.utils.defer_utils import (
 )
 from letsql.expr.relations import (
     make_native_op,
-    MarkedRemoteTable,
     RemoteTable,
+    MarkedRemoteTable,
 )
 
 
@@ -92,6 +92,20 @@ def normalize_remote_databasetable(dt):
     )
 
 
+@dask.base.normalize_token.register((RemoteTable, MarkedRemoteTable))
+def normalize_remote_table(dt):
+    if not isinstance(dt, (RemoteTable, MarkedRemoteTable)):
+        raise ValueError
+
+    return dask.base.normalize_token(
+        {
+            "schema": dt.schema.to_pandas(),
+            "expr": dt.remote_expr,
+            "source": dt.source,
+        }
+    )
+
+
 def normalize_postgres_databasetable(dt):
     from letsql.common.utils.postgres_utils import get_postgres_n_reltuples
 
@@ -131,15 +145,6 @@ def normalize_duckdb_databasetable(dt):
         dialect=dt.source.name
     )
 
-    if isinstance(dt, (MarkedRemoteTable, RemoteTable)):
-        return dask.base._normalize_seq_func(
-            (
-                dt.schema.to_pandas(),
-                str(dt.remote_expr),
-                normalize_backend(dt.source),
-            )
-        )
-
     ((_, plan),) = dt.source.raw_sql(f"EXPLAIN SELECT * FROM {name}").fetchall()
     scan_line = plan.split("\n")[1]
     execution_plan_name = r"\s*│\s*(\w+)\s*│\s*"
@@ -170,14 +175,6 @@ def normalize_letsql_databasetable(dt):
     if dt.source.name != "let":
         raise ValueError
     native_source = dt.source._sources.get_backend(dt)
-    if isinstance(dt, (MarkedRemoteTable, RemoteTable)):
-        return dask.base._normalize_seq_func(
-            (
-                dt.schema.to_pandas(),
-                str(dt.remote_expr),
-                normalize_backend(dt.source),
-            )
-        )
     if native_source.name == "let":
         return normalize_datafusion_databasetable(dt)
     new_dt = make_native_op(dt)
@@ -241,6 +238,7 @@ def normalize_databasetable(dt):
         "snowflake": normalize_snowflake_databasetable,
         "let": normalize_letsql_databasetable,
         "duckdb": normalize_duckdb_databasetable,
+        "trino": normalize_remote_databasetable,
     }
     f = dct[dt.source.name]
     return f(dt)
@@ -254,6 +252,8 @@ def normalize_backend(con):
     elif name == "postgres":
         con_dct = con.con.get_dsn_parameters()
         con_details = {k: con_dct[k] for k in ("host", "port", "dbname")}
+    elif name == "trino":
+        con_details = con.con.host
     elif name == "pandas":
         con_details = id(con.dictionary)
     elif name in ("datafusion", "duckdb", "let"):

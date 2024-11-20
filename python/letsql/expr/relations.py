@@ -138,16 +138,21 @@ class RemoteTableReplacer:
         return node
 
     def get_batches(self, expr):
-        if not expr.op().find((RemoteTable, MarkedRemoteTable)):
+        from letsql import to_pyarrow_batches
+
+        def finder(op):
+            return isinstance(op, (RemoteTable, MarkedRemoteTable)) or op in self.tables
+
+        if not expr.op().find(finder):
             if expr not in self.seen_expr:
-                batches = expr.to_pyarrow_batches()
+                batches = to_pyarrow_batches(expr)
                 result, keep = SafeTee.tee(batches, 2)
                 self.seen_expr[expr] = keep
             else:
                 result, keep = SafeTee.tee(self.seen_expr[expr], 2)
                 self.seen_expr[expr] = keep
         elif expr not in self.seen_expr:
-            batches = expr.op().replace(self).to_expr().to_pyarrow_batches()
+            batches = to_pyarrow_batches(expr.op().replace(self).to_expr())
             result, keep = SafeTee.tee(batches, 2)
             self.seen_expr[expr] = keep
         else:
