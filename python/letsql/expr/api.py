@@ -37,6 +37,7 @@ from ibis.expr.types import (
 
 from letsql.expr.relations import (
     RemoteTable,
+    Read,
 )
 
 
@@ -1595,7 +1596,13 @@ def to_sql(expr: ir.Expr, pretty: bool = True) -> SQLString:
 
     """
 
-    return SQLString(_cached_with_op(expr.unbind().op(), pretty))
+    node = expr.unbind().op()
+    if node.find(Read):
+        query = _cached_with_op.__wrapped__(node, pretty)
+    else:
+        query = _cached_with_op(node, pretty)
+
+    return SQLString(query)
 
 
 def _check_collisions(expr: ir.Expr):
