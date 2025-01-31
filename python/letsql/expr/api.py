@@ -39,7 +39,7 @@ from ibis.expr.types import (
 from letsql.common.utils.caching_utils import find_backend
 from letsql.common.utils.defer_utils import rbr_wrapper
 from letsql.common.utils.graph_utils import replace_fix
-from letsql.expr.letsql_expr import BridgeExpr, wrap_ibis_function
+from letsql.expr.letsql_expr import bridge, wrap_ibis_function
 from letsql.expr.ml import train_test_splits
 from letsql.expr.relations import (
     CachedNode,
@@ -272,7 +272,7 @@ def table(
     name: str | None = None,
     catalog: str | None = None,
     database: str | None = None,
-) -> BridgeExpr[ir.Table]:
+) -> ir.Table:
     """Create a table literal or an abstract table without data.
 
     Ibis uses the word database to refer to a collection of tables, and the word
@@ -317,7 +317,7 @@ def table(
     UnboundTable: cat.db.t
       a int64
     """
-    return BridgeExpr(
+    return bridge(
         api.table(schema=schema, name=name, catalog=catalog, database=database)
     )
 
@@ -412,7 +412,7 @@ def memtable(
     if isinstance(data, pa.RecordBatch):
         data = data.to_pandas()
 
-    return BridgeExpr(api.memtable(data, columns=columns, schema=schema, name=name))
+    return bridge(api.memtable(data, columns=columns, schema=schema, name=name))
 
 
 my_custom_examples = """\
@@ -848,7 +848,7 @@ def ntile(buckets: int | ir.IntegerValue) -> ir.IntegerColumn:
 
 
 @wrap_ibis_function
-def row_number() -> BridgeExpr[ir.IntegerColumn]:
+def row_number() -> ir.IntegerColumn:
     """Return an analytic function expression for the current row number.
 
     ::: {.callout-note}
@@ -880,7 +880,7 @@ def row_number() -> BridgeExpr[ir.IntegerColumn]:
     └────────┴────────┘
 
     """
-    return BridgeExpr(api.row_number())
+    return bridge(api.row_number())
 
 
 def read_csv(
